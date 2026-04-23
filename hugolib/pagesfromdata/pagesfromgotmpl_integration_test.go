@@ -133,6 +133,28 @@ docs/p1/sub/mymixcasetext2.txt
 }
 
 func TestPagesFromGoTmplAsciiDocAndSimilar(t *testing.T) {
+	asciidocOK, _ := asciidocext.Supports()
+	pandocOK := pandoc.Supports()
+	rstOK := rst.Supports()
+
+	// Build content entries only for converters that are available; missing
+	// converters now fail the build rather than silently leaving content
+	// unrendered.
+	var contentLines []string
+	if asciidocOK {
+		contentLines = append(contentLines, `{{ $.AddPage (dict "path" "asciidoc" "content" (dict "value" "Mark my words, #automation is essential#." "mediaType" "text/asciidoc" )) }}`)
+	}
+	if pandocOK {
+		contentLines = append(contentLines, `{{ $.AddPage (dict "path" "pandoc" "content" (dict "value" "This ~~is deleted text.~~" "mediaType" "text/pandoc" )) }}`)
+	}
+	if rstOK {
+		contentLines = append(contentLines, `{{ $.AddPage (dict "path" "rst" "content" (dict "value" "This is *bold*." "mediaType" "text/rst" )) }}`)
+	}
+	contentLines = append(contentLines,
+		`{{ $.AddPage (dict "path" "org" "content" (dict "value" "the ability to use +strikethrough+ is a plus" "mediaType" "text/org" )) }}`,
+		`{{ $.AddPage (dict "path" "nocontent" "title" "No Content" ) }}`,
+	)
+
 	files := `
 -- hugo.toml --
 disableKinds = ["taxonomy", "term", "rss", "sitemap"]
@@ -143,30 +165,23 @@ allow = ['asciidoctor', 'pandoc','rst2html', 'python']
 -- layouts/single.html --
 |Content: {{ .Content }}|Title: {{ .Title }}|Path: {{ .Path }}|
 -- content/docs/_content.gotmpl --
-{{ $.AddPage (dict "path" "asciidoc" "content" (dict "value" "Mark my words, #automation is essential#." "mediaType" "text/asciidoc" )) }}
-{{ $.AddPage (dict "path" "pandoc" "content" (dict "value" "This ~~is deleted text.~~" "mediaType" "text/pandoc" )) }}
-{{ $.AddPage (dict "path" "rst" "content" (dict "value" "This is *bold*." "mediaType" "text/rst" )) }}
-{{ $.AddPage (dict "path" "org" "content" (dict "value" "the ability to use +strikethrough+ is a plus" "mediaType" "text/org" )) }}
-{{ $.AddPage (dict "path" "nocontent" "title" "No Content" ) }}
-
-	`
+` + strings.Join(contentLines, "\n") + "\n"
 
 	b := hugolib.Test(t, files)
 
-	if ok, _ := asciidocext.Supports(); ok {
+	if asciidocOK {
 		b.AssertFileContent("public/docs/asciidoc/index.html",
 			"Mark my words, <mark>automation is essential</mark>",
 			"Path: /docs/asciidoc|",
 		)
 	}
-	if pandoc.Supports() {
+	if pandocOK {
 		b.AssertFileContent("public/docs/pandoc/index.html",
 			"This <del>is deleted text.</del>",
 			"Path: /docs/pandoc|",
 		)
 	}
-
-	if rst.Supports() {
+	if rstOK {
 		b.AssertFileContent("public/docs/rst/index.html",
 			"This is <em>bold</em>",
 			"Path: /docs/rst|",
@@ -177,7 +192,6 @@ allow = ['asciidoctor', 'pandoc','rst2html', 'python']
 		"the ability to use <del>strikethrough</del> is a plus",
 		"Path: /docs/org|",
 	)
-
 	b.AssertFileContent("public/docs/nocontent/index.html", "|Content: |Title: No Content|Path: /docs/nocontent|")
 }
 

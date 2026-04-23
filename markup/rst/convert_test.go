@@ -25,6 +25,24 @@ import (
 	qt "github.com/frankban/quicktest"
 )
 
+func TestConvertErrorWhenBinaryMissingIssue14222(t *testing.T) {
+	if Supports() {
+		t.Skip("rst2html is installed; this test requires rst2html to be absent")
+	}
+	c := qt.New(t)
+	sc := security.DefaultConfig
+	sc.Exec.Allow = security.MustNewWhitelist("rst", "python")
+	p, err := Provider.New(converter.ProviderConfig{
+		Logger: loggers.NewDefault(),
+		Exec:   hexec.New(sc, "", loggers.NewDefault()),
+	})
+	c.Assert(err, qt.IsNil)
+	conv, err := p.New(converter.DocumentContext{DocumentName: "foo.rst"})
+	c.Assert(err, qt.IsNil)
+	_, err = conv.Convert(converter.RenderContext{Src: []byte("testContent")})
+	c.Assert(err, qt.ErrorMatches, `rst2html not found in \$PATH: cannot render "foo\.rst"`)
+}
+
 func TestConvert(t *testing.T) {
 	if !Supports() {
 		t.Skip("rst not installed")

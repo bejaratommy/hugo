@@ -25,6 +25,23 @@ import (
 	qt "github.com/frankban/quicktest"
 )
 
+func TestConvertErrorWhenBinaryMissingIssue14222(t *testing.T) {
+	if Supports() {
+		t.Skip("pandoc is installed; this test requires pandoc to be absent")
+	}
+	c := qt.New(t)
+	sc := security.DefaultConfig
+	var err error
+	sc.Exec.Allow, err = security.NewWhitelist("pandoc")
+	c.Assert(err, qt.IsNil)
+	p, err := Provider.New(converter.ProviderConfig{Exec: hexec.New(sc, "", loggers.NewDefault()), Logger: loggers.NewDefault()})
+	c.Assert(err, qt.IsNil)
+	conv, err := p.New(converter.DocumentContext{DocumentName: "foo.pandoc"})
+	c.Assert(err, qt.IsNil)
+	_, err = conv.Convert(converter.RenderContext{Src: []byte("testContent")})
+	c.Assert(err, qt.ErrorMatches, `pandoc not found in \$PATH: cannot render "foo\.pandoc"`)
+}
+
 func TestConvert(t *testing.T) {
 	if !Supports() {
 		t.Skip("pandoc not installed")
