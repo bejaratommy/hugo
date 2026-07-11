@@ -82,6 +82,9 @@ environment:
   npm_config_userconfig: $SNAP_USER_DATA/.npmrc
 
   # Other
+  # Point HOME at the user's real home so bundled git reads their global
+  # config (e.g. core.quotepath), which GitInfo relies on for non-ASCII paths.
+  HOME: $SNAP_REAL_HOME
   PYTHONHOME: /usr:$SNAP/usr
   pandoc_datadir: $SNAP/usr/share/pandoc
   GIT_EXEC_PATH: $SNAP/usr/lib/git-core
