@@ -66,6 +66,31 @@ Title: {{ .Title }}|Content: {{ .Content }}|
 	}
 }
 
+// Issue 13346
+func TestAliasRelativeToHome(t *testing.T) {
+	t.Parallel()
+
+	files := `
+-- hugo.toml --
+baseURL = "http://example.com"
+disableKinds = ["rss", "sitemap", "taxonomy", "term"]
+-- layouts/all.html --
+{{ .Title }}
+-- content/_index.md --
+---
+title: Home
+aliases: ["welcome"]
+---
+`
+
+	b := Test(t, files)
+
+	// the real page
+	b.AssertFileContent("public/index.html", "Home")
+	// the alias redirector, resolved relative to the site root
+	b.AssertFileContent("public/welcome/index.html", "<meta http-equiv=\"refresh\" content=\"0; url=http://example.com/\">")
+}
+
 func TestAliasMultipleOutputFormats(t *testing.T) {
 	t.Parallel()
 

@@ -128,8 +128,12 @@ func (po *pageOutput) Aliases() []string {
 		var baseDir string
 		if isRelative {
 			// Form the baseDir by taking the resource's base target
-			// and moving up one level to the parent.
-			parentContext := path.Join(p.targetPaths().SubResourceBaseTarget, "..")
+			// and moving up one level to the parent. Anchor the join at
+			// the site root ("/") so that pages whose base target is the
+			// root itself (e.g. the home page, whose SubResourceBaseTarget
+			// is empty) resolve to "/" instead of "..", which would
+			// otherwise traverse outside the website root.
+			parentContext := path.Join("/", p.targetPaths().SubResourceBaseTarget, "..")
 			baseDir = parentContext
 
 		} else {
