@@ -219,16 +219,7 @@ func mapModuleRepo(cfg gitInfoConfig, repoDir, revision string) (*gitmap.GitRepo
 		Repository: repoDir,
 		Revision:   revision,
 		GetGitCommandFunc: func(stdout, stderr io.Writer, args ...string) (gitmap.Runner, error) {
-			var argsv []any
-			for _, arg := range args {
-				argsv = append(argsv, arg)
-			}
-			argsv = append(
-				argsv,
-				hexec.WithStdout(stdout),
-				hexec.WithStderr(stderr),
-			)
-			return cfg.Deps.ExecHelper.New("git", argsv...)
+			return newGitInfoCommand(cfg, stdout, stderr, args...)
 		},
 	}
 	return gitmap.Map(opts)
@@ -238,17 +229,29 @@ func mapLocalRepo(cfg gitInfoConfig) (*gitmap.GitRepo, error) {
 	opts := gitmap.Options{
 		Repository: cfg.Deps.Conf.BaseConfig().WorkingDir,
 		GetGitCommandFunc: func(stdout, stderr io.Writer, args ...string) (gitmap.Runner, error) {
-			var argsv []any
-			for _, arg := range args {
-				argsv = append(argsv, arg)
-			}
-			argsv = append(
-				argsv,
-				hexec.WithStdout(stdout),
-				hexec.WithStderr(stderr),
-			)
-			return cfg.Deps.ExecHelper.New("git", argsv...)
+			return newGitInfoCommand(cfg, stdout, stderr, args...)
 		},
 	}
 	return gitmap.Map(opts)
+}
+
+// gitArgsDisableQuotePath forces Git to print paths as raw bytes.
+// With the default core.quotepath=true, a path containing a byte above 0x80
+// is C-quoted (for example "hug\303\266.md"). That string does not match the
+// path Hugo looks up, so the page gets no GitInfo. See gohugoio/hugo#9810.
+func gitArgsDisableQuotePath(args []string) []string {
+	out := make([]string, 0, len(args)+2)
+	out = append(out, "-c", "core.quotepath=false")
+	out = append(out, args...)
+	return out
+}
+
+func newGitInfoCommand(cfg gitInfoConfig, stdout, stderr io.Writer, args ...string) (gitmap.Runner, error) {
+	args = gitArgsDisableQuotePath(args)
+	argsv := make([]any, 0, len(args)+2)
+	for _, arg := range args {
+		argsv = append(argsv, arg)
+	}
+	argsv = append(argsv, hexec.WithStdout(stdout), hexec.WithStderr(stderr))
+	return cfg.Deps.ExecHelper.New("git", argsv...)
 }
